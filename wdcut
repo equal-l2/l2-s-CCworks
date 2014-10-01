@@ -1,0 +1,175 @@
+local tArgs = { ... }
+
+if #tArgs ~= 2 then
+	print("Usage: wdcut <Rows> <Columns>")
+	print("Place Sapling on Slot 15, Fuel on Slot 16")
+	return
+end
+
+local Rows = tonumber(tArgs[1])
+local Columns = tonumber(tArgs[2])
+
+if Rows < 1 or Columns < 1 then
+	print( "Arguments cannot be zero or negative." )
+	return
+elseif Rows == 1 then
+	print( "Rows cannot be 1.\nBe Columns 1 instead." )
+	return
+else print("Arguments ... OK")
+end
+
+local SapSlot = 15
+local FuelSlot = 16
+local Space = 4
+local Height = 8
+
+local MoveUnit = Space + 1
+local length = (Rows - 1) * MoveUnit + 1
+local Width = (Columns - 1) * MoveUnit + 1
+local Nodes = Rows * Columns
+local GeneralCosts = 1 + ( 2*Height + MoveUnit ) * Nodes - MoveUnit
+local HomingCosts = (Columns - 1) * MoveUnit + 1
+local FuelNeeds
+local SapNeeds
+local InitialFuel
+
+function Mine()
+	turtle.dig()
+	turtle.forward()
+end
+
+function TurnBack()
+	turtle.turnLeft()
+	turtle.turnLeft()
+end
+
+function PlaceSap(x)
+	Mine()
+	TurnBack()
+	turtle.select(SapSlot)
+	turtle.place()
+	turtle.select(1)
+	if x ~=1 then
+		TurnBack()
+		for k = 1, Space-1 do
+			Mine()
+		end
+	end
+end
+
+function Cut()
+	local UpCount = 0
+	Mine()
+
+	while turtle.detectUp() do
+		for k = 1 , 4 do
+			turtle.turnLeft()
+			turtle.dig()
+		end
+		turtle.digUp()
+		turtle.up()
+		UpCount = UpCount + 1
+	end
+
+	for k = 1 , UpCount do
+		turtle.digDown()
+		turtle.down()
+	end
+end
+
+print("You are needed to place Sapling on Slot 15, and Fuel on Slot 16.")
+print("Continue?(y/n)")
+if read() ~= "y" then
+	print("Terminated")
+	return
+end
+
+--Saplings Check
+SapNeeds = Nodes - turtle.getItemCount(SapSlot)
+if SapNeeds > 0 then
+	print( "Not Enough Saplings. You need " .. SapNeeds .. " more Sapling(s)" )
+	return
+else print("Saplings ... OK")
+end
+
+--Fuel Argument Calculate
+if Columns % 2 ~= 0 then
+	HomingCosts = HomingCosts + (length + 3) 
+end
+
+FuelArgs = GeneralCosts + HomingCosts
+
+--Refuel
+if turtle.getFuelLevel() < FuelArgs then
+	turtle.select(FuelSlot)
+	repeat 
+		turtle.refuel(1)
+		if turtle.refuel(0) == false then
+			FuelNeeds = FuelArgs - turtle.getFuelLevel()
+			print("Not Enough Fuels. You need " .. FuelNeeds .. " more Fuel Unit(s) (equals to " .. FuelNeeds/80 .. " Coal(s)") 
+			return
+		end
+	until turtle.getFuelLevel() >= FuelArgs
+		turtle.select(1)
+end
+print("Refuel ... OK")
+
+InitialFuel = turtle.getFuelLevel()
+print("Fuel level is " .. InitialFuel ..".")
+
+--Chop the logs
+print("Chopping Wood")
+Cut()
+PlaceSap()
+
+function Turn(int)
+	if int % 2 then
+		turtle.turnLeft()
+	else
+		turtle.turnRight()
+	end
+end
+
+for i = 1 , Columns - 1 do
+
+	for j = 1 , (Rows - 2) do
+		Cut()
+		PlaceSap()
+	end
+
+	for j = 1,2 do
+		Cut()
+		Turn(i)
+		PlaceSap()
+	end
+	
+end
+
+--last column
+for i = 1 , (Rows - 2) do
+		Cut()
+		PlaceSap()
+end
+
+Cut()
+PlaceSap(1)
+
+--Return to Origin
+print("Going Back to home")
+turtle.turnRight()
+if Columns % 2 ~= 0 then
+	Mine()
+	turtle.turnLeft()
+	for i = 1 , (length + 1) do
+		Mine()
+	end
+	turtle.turnLeft()
+	turtle.forward()
+end
+
+for i = 1 , (Width - 1) do
+Mine()
+end
+
+turtle.turnLeft()
+print("Calculated Fuel Arguments:" .. FuelArgs .."\nActual Fuel Usage:" .. (InitialFuel-turtle.getFuelLevel()))

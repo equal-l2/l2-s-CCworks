@@ -1,0 +1,223 @@
+os.loadAPI("MyLib")
+
+tInitArgs = {...}
+
+function ArgProcess(tInit)
+	local level
+	k,v = MyLib.tSearch(tInit,"debug","forward")
+	if k then
+		if tonumber(tInit[k + 1]) then
+			level = tonumber(tInit[k + 1])
+		else
+			level = 1
+		end
+	else
+		level = 0
+	end
+	MyLib.DebugMsg("set",level,true)
+end
+
+local tComs = {
+ 	MF = turtle.forward,
+ 	MB = turtle.back,
+ 	MU = turtle.up,
+ 	MD = turtle.down,
+  
+ 	TL = turtle.turnLeft,
+ 	TR = turtle.turnRight,
+  
+ 	AF = turtle.attack,
+ 	AU = turtle.attackUp,
+ 	AD = turtle.attackDown,
+  
+ 	DF = turtle.dig,
+ 	DU = turtle.digUp,
+ 	DD = turtle.digDown,
+  
+ 	PF = turtle.place,
+ 	PU = turtle.placeUp,
+ 	PD = turtle.placeDown,
+  
+ 	SF = turtle.suck,
+ 	SU = turtle.suckUp,
+ 	SD = turtle.suckDown,
+  
+ 	FF = turtle.drop,
+ 	FU = turtle.dropUp,
+ 	FD = turtle.dropDown,
+} 
+
+local tLoop = {}
+
+local tFuncs = {
+	--[[
+	Any function in tFuncs should follow the rules below:
+	•To have "NumArg" and "ArgType" constant (even when the function actually don't need any argument).
+	•To follow the rule for right use of "ArgType" (below)
+		•"Pos" … Function will be　given its position on Input table as single-element table.
+		•"Follow" … Function will be　given its following argument(s) on Input table as table.
+		•"None" … Function will be　given a empty table.
+	•To return "JUMP" and "RETURN" first when they are needed.
+	•To be written so that it can process table-type arg (if it needs arg). 
+	]]
+
+	SL = {
+		NumArg = 1,
+		ArgType = "Follow",
+		run = function(tArg)
+			local ReVal
+
+			if tonumber(tArg[1]) then --if arg exists 
+				FuncArg = tonumber(tArg[1])
+				ReVal = true
+			else
+				return
+			end
+
+			turtle.select(FuncArg)
+			if ReVal then return {"JUMP"} end
+		end,
+	},
+
+	RE = {
+		NumArg = 1,
+		ArgType = "Follow",
+		run = function(tArg)
+			local ReVal
+
+			local FuncArg = 1
+			if tonumber(tArg[1]) then --if arg exists 
+				FuncArg = tonumber(tArg[1])
+				bReVal = true --prevent arg from eval
+			end
+
+			r,e = turtle.refuel(FuncArg)
+			if r then
+				print("Fuel level is now " .. turtle.getFuelLevel())
+			else
+				print(e)
+			end
+
+			if bReVal then return {"JUMP"} end
+		end,
+	},
+
+
+	LIN = {
+		NumArg = 1,
+		ArgType = "Pos",
+		run = function(tArg)
+			local tInit = {}
+			tInit = { LoopInit = "init", ReturnPos = tArg[1], LoopLeft = "init", }
+			table.insert(tLoop,tInit)
+			MyLib.DebugMsg("Loop " .. #tLoop .. " In")
+		end,
+	},
+
+	LOUT = {
+		NumArg = 1,
+		ArgType = "Follow",
+		run = function(tArg)
+			local bReVal
+			local NumLoop = tonumber(tArg[1])
+			local len = #tLoop
+
+			if tLoop[len].LoopInit == "init" then
+				if not NumLoop then
+					print("No Loop Arg")
+					table.remove(tLoop)
+				elseif NumLoop <= 1 then
+					print("invalid Loop Arg")
+					table.remove(tLoop)
+					bReVal = "JUMP"
+				else
+					tLoop[len].LoopInit = NumLoop
+					tLoop[len].LoopLeft = NumLoop
+					bReVal = "RETURN"
+					MyLib.DebugMsg("Loop " .. len .. " Process 1" .. "/" .. tLoop[len].LoopInit,2)
+				end
+			elseif tLoop[len].LoopLeft > 1 then
+				tLoop[len].LoopLeft = tLoop[len].LoopLeft - 1
+				local Processed = tLoop[len].LoopInit - tLoop[len].LoopLeft + 1
+				if tLoop[len].LoopLeft > 1 then
+					bReVal = "RETURN"
+					MyLib.DebugMsg("Loop " .. len .. " Process " .. Processed .. "/" .. tLoop[len].LoopInit,2)
+				else
+					bReVal = "JUMP"
+					MyLib.DebugMsg("Loop " .. len .. " Process " .. Processed .. "/" .. tLoop[len].LoopInit .. " Out")
+					table.remove(tLoop)
+				end
+			end
+
+			if bReVal == "JUMP" then
+				return {"JUMP"} 
+			elseif bReVal == "RETURN" then
+				return {"RETURN",tLoop[len].ReturnPos}
+			end
+		end,
+	},
+}
+
+function ComProcess(str)
+	local tInput = MyLib.Split(str:upper(),",")
+
+	pos = 1
+	repeat
+		local v = tInput[pos]
+		if tFuncs[v] then
+			MyLib.DebugMsg(v,2)
+			local tFuncArgs = {}
+			local ArgType = tFuncs[v].ArgType
+
+			if ArgType == "Follow" then
+				for i = 1, tFuncs[v].NumArg do
+					table.insert(tFuncArgs,tInput[pos + i])
+				end
+			elseif ArgType == "Pos" then
+				table.insert(tFuncArgs,pos)
+			elseif ArgType ~= "None" then
+				MyLib.DebugMsg(v..":ArgType Not Defined!")
+			end
+
+			local ReVal = tFuncs[v].run(tFuncArgs)
+
+			if ReVal then
+				if ReVal[1] == "JUMP" then
+					pos = pos + tFuncs[v].NumArg
+				elseif ReVal[1] == "RETURN" then
+					local ReturnNum = tonumber(ReVal[2]) or pos
+					pos = ReturnNum
+				end
+			end
+		elseif tComs[v] then
+			local ReVal,Reason = tComs[v]()
+			if ReVal then 
+				write("->")
+			else
+				write(Reason.." ")
+			end
+		elseif v == "Q" then
+			return true
+		else
+			print("ERROR")
+		end
+		pos = pos + 1
+	until pos > #tInput
+end
+
+function Interactive()
+	local tComHistory = {}
+	MyLib.DebugMsg("show",0,true)
+	write(">>")
+	while true do
+		local sInput = read(nil,tComHistory)
+		table.insert(tComHistory,sInput)
+		local bStop = ComProcess(sInput)
+		if bStop then break end
+		write("\n>>")
+	end
+	print("QUIT")
+end
+
+ArgProcess(tInitArgs)
+Interactive()

@@ -1,0 +1,173 @@
+os.loadAPI("MyLib")
+
+local tArgs = {...}
+local iMineDistance = tArgs[1] or 100
+local iTorchDistance = 5
+local iTorchSlot = 15
+local iFuelSlot = 16
+local FuelCheck = true
+local TorchCheck = true
+
+function TurnBack()
+	turtle.turnLeft()
+	turtle.turnLeft()
+end
+
+function PlaceTorch(str)
+	local tDirection = {}
+	MyLib.DebugMsg("PlaceTorch")
+	turtle.select(iTorchSlot)
+
+	if str ~= "last" then
+		turtle.placeDown()
+	else
+		turtle.place()
+	end
+
+	turtle.select(1)
+end
+
+function GoBack()
+	TurnBack()
+	for j = 1,iProgress do
+		SecureForward()
+	end
+end
+
+function SecureForward()
+	local bSuccess = turtle.forward()
+	MyLib.DebugMsg("Attempt to forward")
+	if not bSuccess then
+	MyLib.DebugMsg("1st Attempt Failed")
+		while not turtle.forward() do
+			MyLib.DebugMsg("In While Statement")
+			if turtle.getFuelLevel() == 0 then
+				MyLib.DebugMsg("Refuel")
+				turtle.select(iFuelSlot)
+				turtle.refuel(1)
+				turtle.select(1)	
+			end
+			turtle.dig()
+			turtle.attack()
+		end
+	end
+end
+
+function Store()
+	MyLib.DebugMsg("Drop to Storage")
+	for j = 1,14 do
+	turtle.select(j)
+	turtle.drop()
+	end
+	turtle.select(1)
+end
+
+function FuelArgCheck()
+	if not FuelCheck then return true end 
+
+	turtle.select(iFuelSlot)
+	local bSuccess
+	local sReason
+	local MinimumFuelNeed = iMineDistance * 2
+
+	if not turtle.refuel(0) then
+		bSuccess = false
+		sReason = "not_exist"
+	elseif turtle.getFuelLevel() < MinimumFuelNeed then
+		while turtle.getFuelLevel() < MinimumFuelNeed do
+			if not turtle.refuel(1) then
+				bSuccess = false
+				sReason = "not_enough"
+				break
+			else
+				bSuccess = true
+			end
+		end
+	else
+		bSuccess = true
+	end
+
+	if bSuccess then
+		print("Fuel Check Passed.")
+		turtle.select(1)
+	else
+		if sReason == "not_exist" then
+			print("Fuel(s) seem not to be exist in Slot 16. Insert Fuel(s)")
+		elseif sReason == "not_enough" then
+			FuelShortage = MinimumFuelNeed - turtle.getFuelLevel()
+			print("Not Enough Fuel(s).")
+			print("You need " .. FuelShortage .. " more Fuel Units (equals to " .. FuelShortage/80 .. " Coal(s)) in Slot 16.")
+		else
+			print("unexpected error")
+		end
+	end
+
+	return bSuccess
+end
+
+function TorchArgCheck()
+	if not TorchCheck then return true end
+
+	local bSuccess
+	CurrentTorch = turtle.getItemCount(iTorchSlot)
+	print(CurrentTorch)
+	TorchArg = math.floor(iMineDistance / iTorchDistance)
+
+	if CurrentTorch < TorchArg then
+		bSuccess = false
+	else
+		bSuccess = true
+	end
+
+	if bSuccess then
+		print("Torch Amount Check Passed")
+	else
+	TorchShortage = TorchArg - CurrentTorch
+		print("Not Enough Torch(es).")
+		print("You need " .. TorchShortage .. " Torch(es) on Slot 15.")
+	end
+
+	return bSuccess
+end
+
+--main
+MyLib.DebugMsg("Debug Mode")
+
+if not (FuelArgCheck() and TorchArgCheck()) then
+	return
+end
+
+for i = 1,iMineDistance do
+
+	if i ~= 1 then
+		turtle.dig()
+		SecureForward()
+	end
+
+	iProgress = i
+
+	turtle.digDown()
+	
+	if (i - 1) % iTorchDistance == 0 then
+		PlaceTorch()
+	end
+
+	if turtle.getItemCount(14) > 0 then
+		GoBack()
+
+		Store()
+
+		GoBack()
+	end
+
+end
+
+TurnBack()
+SecureForward()
+TurnBack()
+PlaceTorch("last")
+iProgress = iProgress - 1
+
+GoBack()
+Store()
+TurnBack()

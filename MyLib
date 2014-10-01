@@ -1,0 +1,72 @@
+local DebugLevel = 0
+
+function DebugMsg(str,level,Special)
+	level = level or 1
+	if Special then
+		local Com = str:upper()
+		local tCom = {
+			SET = function()
+				DebugLevel = level
+			end,
+
+			SHOW = function()
+				if DebugLevel >= 1 then
+					print("Debug Mode at Level "..DebugLevel)
+				end
+			end,
+		}
+		if tCom[str] then tCom[str]() end
+	elseif level <= DebugLevel then --Print debug message
+		print(str)
+	end
+end
+
+function tSearch(table,keyword,matchmethod)
+	local function sSearch(str,keyword,matchmethod)
+		local CompValue = str:upper()
+		local CompKey = keyword:upper()
+		local bSuccess = false
+		local pattern = CompKey --default is partial match
+
+		if matchmethod == "exact" then -- exact match
+			pattern = "^" .. CompKey .. "$"
+		elseif matchmethod == "forward" then -- forward match
+			pattern = "^" .. CompKey
+		elseif matchmethod == "backward" then -- backward match
+			pattern = CompKey.."$"
+		end
+		
+		if CompValue:find(pattern) then bSuccess = true end
+		return bSuccess
+	end
+
+	for k,v in pairs(table) do
+		if sSearch(v,keyword,matchmethod) then
+			return k,v
+		end
+	end
+
+	return false
+end
+
+function Split(str, delim)
+	local LastPos = 1
+	local Pattern = "(.-)" .. delim
+	local tResult = {}
+	local s,e,cap = str:find(Pattern,LastPos)
+
+	while s do
+		if cap ~= "" then
+			table.insert(tResult,cap)
+		end
+		LastPos = e + 1
+		s,e,cap = str:find(Pattern,LastPos)
+	end
+
+	if LastPos <= str:len() then
+		cap = str:sub(LastPos)
+		table.insert(tResult,cap)
+	end
+
+	return tResult
+end
