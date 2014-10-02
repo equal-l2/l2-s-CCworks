@@ -1,4 +1,7 @@
-os.loadAPI("MyLib")
+local APIpass = "MyLib"
+if not MyLib then
+	if not os.loadAPI(APIpass) then print("Cannot Load API") return end
+end
 
 tInitArgs = {...}
 
@@ -15,6 +18,7 @@ function ArgProcess(tInit)
 		level = 0
 	end
 	MyLib.DebugMsg("set",level,true)
+	MyLib.DebugMsg("show",0,true)
 end
 
 local tComs = {
@@ -47,7 +51,7 @@ local tComs = {
  	FD = turtle.dropDown,
 } 
 
-local tLoop = {}
+local tLoop = MyLib.NewTable()
 
 local tFuncs = {
 	--[[
@@ -109,7 +113,7 @@ local tFuncs = {
 		run = function(tArg)
 			local tInit = {}
 			tInit = { LoopInit = "init", ReturnPos = tArg[1], LoopLeft = "init", }
-			table.insert(tLoop,tInit)
+			tLoop:insert(tInit)
 			MyLib.DebugMsg("Loop " .. #tLoop .. " In")
 		end,
 	},
@@ -118,40 +122,40 @@ local tFuncs = {
 		NumArg = 1,
 		ArgType = "Follow",
 		run = function(tArg)
-			local bReVal
+			local ReVal
 			local NumLoop = tonumber(tArg[1])
 			local len = #tLoop
 
 			if tLoop[len].LoopInit == "init" then
 				if not NumLoop then
 					print("No Loop Arg")
-					table.remove(tLoop)
+					tLoop:remove()
 				elseif NumLoop <= 1 then
 					print("invalid Loop Arg")
-					table.remove(tLoop)
-					bReVal = "JUMP"
+					tLoop:remove()
+					ReVal = "JUMP"
 				else
 					tLoop[len].LoopInit = NumLoop
 					tLoop[len].LoopLeft = NumLoop
-					bReVal = "RETURN"
+					ReVal = "RETURN"
 					MyLib.DebugMsg("Loop " .. len .. " Process 1" .. "/" .. tLoop[len].LoopInit,2)
 				end
 			elseif tLoop[len].LoopLeft > 1 then
 				tLoop[len].LoopLeft = tLoop[len].LoopLeft - 1
 				local Processed = tLoop[len].LoopInit - tLoop[len].LoopLeft + 1
 				if tLoop[len].LoopLeft > 1 then
-					bReVal = "RETURN"
+					ReVal = "RETURN"
 					MyLib.DebugMsg("Loop " .. len .. " Process " .. Processed .. "/" .. tLoop[len].LoopInit,2)
 				else
-					bReVal = "JUMP"
+					ReVal = "JUMP"
 					MyLib.DebugMsg("Loop " .. len .. " Process " .. Processed .. "/" .. tLoop[len].LoopInit .. " Out")
-					table.remove(tLoop)
+					tLoop:remove()
 				end
 			end
 
-			if bReVal == "JUMP" then
+			if ReVal == "JUMP" then
 				return {"JUMP"} 
-			elseif bReVal == "RETURN" then
+			elseif ReVal == "RETURN" then
 				return {"RETURN",tLoop[len].ReturnPos}
 			end
 		end,
@@ -166,15 +170,15 @@ function ComProcess(str)
 		local v = tInput[pos]
 		if tFuncs[v] then
 			MyLib.DebugMsg(v,2)
-			local tFuncArgs = {}
+			local tFuncArgs = MyLib.NewTable()
 			local ArgType = tFuncs[v].ArgType
 
 			if ArgType == "Follow" then
 				for i = 1, tFuncs[v].NumArg do
-					table.insert(tFuncArgs,tInput[pos + i])
+					tFuncArgs:insert(tInput[pos + i])
 				end
 			elseif ArgType == "Pos" then
-				table.insert(tFuncArgs,pos)
+				tFuncArgs:insert(pos)
 			elseif ArgType ~= "None" then
 				MyLib.DebugMsg(v..":ArgType Not Defined!")
 			end
@@ -206,14 +210,13 @@ function ComProcess(str)
 end
 
 function Interactive()
-	local tComHistory = {}
-	MyLib.DebugMsg("show",0,true)
+	local tComHistory = MyLib.NewTable()
 	write(">>")
 	while true do
 		local sInput = read(nil,tComHistory)
-		table.insert(tComHistory,sInput)
-		local bStop = ComProcess(sInput)
-		if bStop then break end
+		tComHistory:insert(sInput)
+		local isStop = ComProcess(sInput)
+		if isStop then break end
 		write("\n>>")
 	end
 	print("QUIT")
