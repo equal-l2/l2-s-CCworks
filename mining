@@ -1,4 +1,7 @@
-os.loadAPI("MyLib")
+local APIpass = "MyLib"
+if not MyLib then
+	if not os.loadAPI(APIpass) then print("Cannot Load API") return end
+end
 
 local tArgs = {...}
 local iMineDistance = tArgs[1] or 100
@@ -110,7 +113,6 @@ function TorchArgCheck()
 
 	local bSuccess
 	CurrentTorch = turtle.getItemCount(iTorchSlot)
-	print(CurrentTorch)
 	TorchArg = math.floor(iMineDistance / iTorchDistance)
 
 	if CurrentTorch < TorchArg then
