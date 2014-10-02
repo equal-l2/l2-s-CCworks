@@ -1,12 +1,63 @@
-local DebugLevel = 0
+local tProto = {
+	insert = function(self,...)
+		table.insert(self,...)
+	end,
+	
+	remove = function(self,...)
+		return table.remove(self,...)
+	end,
 
-function DebugMsg(str,level,Special)
+	search = function(self,keyword,matchmethod) return tSearch(self,keyword,matchmethod) end,
+
+	new = function(self,tInit)
+		if type(tInit) == "table" or (not tInit) then
+			local t = tInit or {}
+			setmetatable(t,{__index = self})
+			return t
+		else
+			print("Bad Initializer")
+		end
+	end,
+}
+
+function NewTable(tInit)
+	return tProto:new(tInit)
+end
+
+function tSearch(table,keyword,matchmethod)
+		local function sSearch(str,keyword,matchmethod)
+			local CompValue = str:upper()
+			local CompKey = keyword:upper()
+			local bSuccess = false
+			
+			local tMethod = {
+			exact = "^" .. CompKey .. "$",
+			forward = "^" .. CompKey,
+			backward = CompKey.."$",
+			}
+
+			local pattern = tMethod[matchmethod] or CompKey --default is partial match
+			if CompValue:find(pattern) then bSuccess = true end
+			
+			return bSuccess
+		end
+
+		for k,v in pairs(table) do
+			if type(v) == "string" and sSearch(v,keyword,matchmethod) then
+				return k,v
+			end
+		end
+
+		return false
+	end
+
+local DebugLevel = 0
+function DebugMsg(str,level,isSpecial)
 	level = level or 1
-	if Special then
-		local Com = str:upper()
+	if isSpecial then
 		local tCom = {
-			SET = function()
-				DebugLevel = level
+			SET = function(ChangeTo)
+				DebugLevel = ChangeTo
 			end,
 
 			SHOW = function()
@@ -15,49 +66,22 @@ function DebugMsg(str,level,Special)
 				end
 			end,
 		}
-		if tCom[str] then tCom[str]() end
+		local Com = str:upper()
+		if tCom[Com] then tCom[Com](level) end
 	elseif level <= DebugLevel then --Print debug message
 		print(str)
 	end
 end
 
-function tSearch(table,keyword,matchmethod)
-	local function sSearch(str,keyword,matchmethod)
-		local CompValue = str:upper()
-		local CompKey = keyword:upper()
-		local bSuccess = false
-		local pattern = CompKey --default is partial match
-
-		if matchmethod == "exact" then -- exact match
-			pattern = "^" .. CompKey .. "$"
-		elseif matchmethod == "forward" then -- forward match
-			pattern = "^" .. CompKey
-		elseif matchmethod == "backward" then -- backward match
-			pattern = CompKey.."$"
-		end
-		
-		if CompValue:find(pattern) then bSuccess = true end
-		return bSuccess
-	end
-
-	for k,v in pairs(table) do
-		if sSearch(v,keyword,matchmethod) then
-			return k,v
-		end
-	end
-
-	return false
-end
-
 function Split(str, delim)
 	local LastPos = 1
 	local Pattern = "(.-)" .. delim
-	local tResult = {}
+	local tResult = NewTable()
 	local s,e,cap = str:find(Pattern,LastPos)
 
 	while s do
 		if cap ~= "" then
-			table.insert(tResult,cap)
+			tResult:insert(cap)
 		end
 		LastPos = e + 1
 		s,e,cap = str:find(Pattern,LastPos)
@@ -65,7 +89,7 @@ function Split(str, delim)
 
 	if LastPos <= str:len() then
 		cap = str:sub(LastPos)
-		table.insert(tResult,cap)
+		tResult:insert(cap)
 	end
 
 	return tResult
