@@ -1,3 +1,58 @@
+function OmniPrint(Input,NumExpand)
+	local Expanded = 1
+	local function funcOmniPrint(Input,NumExpand)
+		local ExpandLim = NumExpand or math.huge
+		if type(Input) == "table" and Expanded <= ExpandLim then
+			for k,v in pairs(Input) do
+				if type(v) == "table" and Expanded < ExpandLim then
+					print(tostring(k))
+					if #v ~= 0 then
+						Expanded = Expanded + 1
+						funcOmniPrint(v,ExpandLim)
+					else
+						print("empty table")
+					end
+				else
+					local kout = tostring(k)
+					local vout = tostring(v)
+					print(kout..",",vout)
+				end
+			end
+		else
+			print(tostring(Input))
+		end
+	end
+
+	funcOmniPrint(Input,NumExpand)
+end
+
+function tSearch(table,keyword,matchmethod)
+	local function sSearch(str,keyword,matchmethod)
+		local CompValue = str:upper()
+		local CompKey = keyword:upper()
+		local bSuccess = false
+		
+		local tMethod = {
+		exact = "^" .. CompKey .. "$",
+		forward = "^" .. CompKey,
+		backward = CompKey.."$",
+		}
+
+		local pattern = tMethod[matchmethod] or CompKey --default is partial match
+		if CompValue:find(pattern) then bSuccess = true end
+		
+		return bSuccess
+	end
+
+	for k,v in pairs(table) do
+		if type(v) == "string" and sSearch(v,keyword,matchmethod) then
+			return k,v
+		end
+	end
+
+	return false
+end
+
 local tProto = {
 	insert = function(self,...)
 		table.insert(self,...)
@@ -9,47 +64,38 @@ local tProto = {
 
 	search = function(self,keyword,matchmethod) return tSearch(self,keyword,matchmethod) end,
 
-	new = function(self,tInit)
+	inherit = function(self,tInit) --make table which has the same metatable with self except __index = self.
 		if type(tInit) == "table" or (not tInit) then
+			local function TblCopy(table) --won't copy tables in value, they will remain as simple refference
+				local new = {}
+				if type(table) == "table" then
+					for k,v in pairs(table) do
+						new[k] = v
+					end
+					return new
+				else
+					return false
+				end
+			end
+
+			local metatbl =TblCopy(getmetatable(self)) or {}
+			metatbl.__index = self
+
 			local t = tInit or {}
-			setmetatable(t,{__index = self})
-			return t
+			return setmetatable(t,metatbl)
 		else
 			print("Bad Initializer")
 		end
 	end,
+
+	--[[new = function(self,tInit) --make table which has the same metatable with self 
+		return TblWithMetaTbl(getmetatable(self),tInit)
+	end,]]
 }
 
 function NewTable(tInit)
-	return tProto:new(tInit)
+	return tProto:inherit(tInit)
 end
-
-function tSearch(table,keyword,matchmethod)
-		local function sSearch(str,keyword,matchmethod)
-			local CompValue = str:upper()
-			local CompKey = keyword:upper()
-			local bSuccess = false
-			
-			local tMethod = {
-			exact = "^" .. CompKey .. "$",
-			forward = "^" .. CompKey,
-			backward = CompKey.."$",
-			}
-
-			local pattern = tMethod[matchmethod] or CompKey --default is partial match
-			if CompValue:find(pattern) then bSuccess = true end
-			
-			return bSuccess
-		end
-
-		for k,v in pairs(table) do
-			if type(v) == "string" and sSearch(v,keyword,matchmethod) then
-				return k,v
-			end
-		end
-
-		return false
-	end
 
 local DebugLevel = 0
 function DebugMsg(str,level,isSpecial)
